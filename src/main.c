@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
+// Include assets
+#include "assets/logo.h"
+
 // -----------------------------------------------------------------------------
 // Variables / Constants
 // -----------------------------------------------------------------------------
@@ -41,13 +44,33 @@ uint8_t key_released(uint8_t aKey) {
 // Visualization
 // -----------------------------------------------------------------------------
 
-// TODO: Visualization
-void draw(void) {
-  gotoxy(1, 1);
-  printf("Shifty");
+// TODO: Visualization / reload_tile
+#define VISUALIZATION_WIDTH 17
 
+const uint8_t *scanline_offsets = _wave;
+void scanline_isr(void) {
+  SCX_REG = scanline_offsets[(uint8_t)(LY_REG & 0x07u)];
+}
+
+void reload_tiles(void) {
+  for (uint8_t i = 0; i < VISUALIZATION_WIDTH + 1; i++) {
+    uint8_t _tile[16] = {rand(), rand(), rand(), rand(), rand(), rand(),
+                         rand(), rand(), rand(), rand(), rand(), rand(),
+                         rand(), rand(), rand(), rand()};
+    set_bkg_data(0x66 + i, 1, _tile);
+  }
+}
+
+void draw(void) {
+  gotoxy(13, 1);
+  printf("Shifty");
   gotoxy(0, 17);
   printf(VERSION);
+
+  reload_tiles();
+  for (uint8_t i = 0; i < VISUALIZATION_WIDTH + 1; i++)
+    for (uint8_t j = 0; j < 14; j++)
+      set_bkg_tile_xy(1 + i, 2 + j, 0x66 + i);
 }
 
 // -----------------------------------------------------------------------------
@@ -55,11 +78,7 @@ void draw(void) {
 // -----------------------------------------------------------------------------
 
 // TODO: Better wave initialization.
-uint16_t seed;
 void reinit_wave(void) {
-  seed = DIV_REG;
-  seed |= (uint16_t)DIV_REG << 8;
-  initrand(seed);
   for (uint8_t i = 0; i < SAMPLES; i++) {
     _wave[i] = 0;
   }
@@ -120,16 +139,20 @@ void check_inputs(void) {
   update_keys();
   if (key_ticked(J_START)) {
     play = !play;
-    if (play)
+    if (play) {
       reinit_wave();
+    } else {
+      for (uint8_t i = 0; i < SAMPLES; i++)
+        _wave[i] = 0;
+      reload_tiles();
+    }
   }
   if (key_ticked(J_SELECT)) {
     if (play) {
       play = false;
       reinit_wave();
       play = true;
-    } else
-      reinit_wave();
+    }
   }
 
   // TODO: period_value - more controls
@@ -141,19 +164,48 @@ void check_inputs(void) {
   }
 }
 
-void main(void) {
-  draw();
+void show_logo(void) {
+  gotoxy(7, 4);
+  printf("Shifty");
 
+  // Logo
+  set_bkg_tiles(5, 5, logo_WIDTH / 8, logo_HEIGHT / 8, logo_map);
+
+  gotoxy(5, 13);
+  printf("by  vec2pt");
+
+  vsync();
+  delay(2200);
+}
+
+uint16_t seed;
+void setup(void) {
+  // Random seed
+  seed = DIV_REG;
+  seed |= (uint16_t)DIV_REG << 8;
+  initrand(seed);
+
+  // Sound
   NR52_REG = 0x80;
   NR51_REG = 0x44;
   NR50_REG = 0x77;
 
-  reinit_wave();
+  set_bkg_data(0x66, logo_TILE_COUNT, logo_tiles);
+  show_logo();
+}
+
+void main(void) {
+  setup();
+  draw();
 
   __critical {
     TMA_REG = 0xC0, TAC_REG = 0x07;
     add_TIM(play_isr);
-    set_interrupts(VBL_IFLAG | TIM_IFLAG);
+
+    STAT_REG = STATF_MODE00;
+    add_LCD(scanline_isr);
+    add_LCD(nowait_int_handler);
+    set_interrupts(VBL_IFLAG | TIM_IFLAG | IE_REG | LCD_IFLAG);
   }
 
   while (1) {
