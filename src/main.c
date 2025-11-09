@@ -1,0 +1,163 @@
+#include <gb/gb.h>
+#include <gbdk/console.h>
+#include <rand.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+
+// -----------------------------------------------------------------------------
+// Variables / Constants
+// -----------------------------------------------------------------------------
+
+#define VERSION "v0.9.0"
+
+#define AUD3WAVE_LEN 16
+#define SAMPLES 32
+
+uint8_t _wave[SAMPLES];
+
+bool play = false;
+
+// -----------------------------------------------------------------------------
+// Inputs
+// -----------------------------------------------------------------------------
+
+uint8_t previous_keys = 0, keys = 0;
+
+void update_keys(void) {
+  previous_keys = keys;
+  keys = joypad();
+}
+
+uint8_t key_pressed(uint8_t aKey) { return keys & aKey; }
+uint8_t key_ticked(uint8_t aKey) {
+  return (keys & aKey) && !(previous_keys & aKey);
+}
+uint8_t key_released(uint8_t aKey) {
+  return !(keys & aKey) && (previous_keys & aKey);
+}
+
+// -----------------------------------------------------------------------------
+// Visualization
+// -----------------------------------------------------------------------------
+
+// TODO: Visualization
+void draw(void) {
+  gotoxy(1, 1);
+  printf("Shifty");
+
+  gotoxy(0, 17);
+  printf(VERSION);
+}
+
+// -----------------------------------------------------------------------------
+// main
+// -----------------------------------------------------------------------------
+
+// TODO: Better wave initialization.
+uint16_t seed;
+void reinit_wave(void) {
+  seed = DIV_REG;
+  seed |= (uint16_t)DIV_REG << 8;
+  initrand(seed);
+  for (uint8_t i = 0; i < SAMPLES; i++) {
+    _wave[i] = 0;
+  }
+  _wave[rand() & 31] = rand() & 0xF;
+  _wave[rand() & 31] = rand() & 0xF;
+  _wave[rand() & 31] = rand() & 0xF;
+}
+
+// Bit numbering: LSb (1) / MSb (0)
+// https://en.wikipedia.org/wiki/Bit_numbering
+#define BIT_NUMBERING_LSB 1
+uint8_t last_sample, lfsr_bit, shifted_bit, shifted_bit_new;
+
+void shiftwave(void) {
+  last_sample = _wave[SAMPLES - 1];
+#if BIT_NUMBERING_LSB
+  lfsr_bit = ((last_sample >> 3) ^ (last_sample >> 2) & 1);
+#else
+  lfsr_bit = ((last_sample >> 1) ^ last_sample) & 1;
+#endif
+
+  shifted_bit = 0;
+  // shifted_bit = last_sample >> 3;
+  shifted_bit_new = 0;
+  for (uint8_t i = 0; i < SAMPLES; i++) {
+#if BIT_NUMBERING_LSB
+    shifted_bit_new = (_wave[i] >> 3) & 1;
+    _wave[i] = ((_wave[i] << 1) | shifted_bit) & 0xF;
+#else
+    shifted_bit_new = _wave[i] & 1;
+    _wave[i] = (_wave[i] >> 1 | (shifted_bit << 3)) & 0xF;
+#endif
+    shifted_bit = shifted_bit_new;
+  }
+  _wave[0] |= lfsr_bit;
+}
+
+uint16_t period_value = 0x700;
+void play_isr(void) {
+  if (play) {
+    shiftwave();
+
+    NR30_REG = 0;
+
+    for (uint8_t i = 0; i < AUD3WAVE_LEN; i++)
+      AUD3WAVE[i] = (_wave[i * 2] << 4) | _wave[i * 2 + 1];
+
+    NR30_REG = 0x80;
+    NR31_REG = 0xFE;
+    NR32_REG = 0x20;
+
+    NR33_REG = period_value & 0xFF;
+    NR34_REG = 0xC0 | (period_value >> 8);
+  }
+}
+
+void check_inputs(void) {
+  update_keys();
+  if (key_ticked(J_START)) {
+    play = !play;
+    if (play)
+      reinit_wave();
+  }
+  if (key_ticked(J_SELECT)) {
+    if (play) {
+      play = false;
+      reinit_wave();
+      play = true;
+    } else
+      reinit_wave();
+  }
+
+  // TODO: period_value - more controls
+  if (key_pressed(J_UP)) {
+    period_value += 10;
+  }
+  if (key_pressed(J_DOWN)) {
+    period_value -= 10;
+  }
+}
+
+void main(void) {
+  draw();
+
+  NR52_REG = 0x80;
+  NR51_REG = 0x44;
+  NR50_REG = 0x77;
+
+  reinit_wave();
+
+  __critical {
+    TMA_REG = 0xC0, TAC_REG = 0x07;
+    add_TIM(play_isr);
+    set_interrupts(VBL_IFLAG | TIM_IFLAG);
+  }
+
+  while (1) {
+    check_inputs();
+    vsync();
+  }
+}
