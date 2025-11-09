@@ -17,9 +17,13 @@
 #define AUD3WAVE_LEN 16
 #define SAMPLES 32
 
+bool play = false;
+
 uint8_t _wave[SAMPLES];
 
-bool play = false;
+#define PERIOD_VALUE_MIN 0
+#define PERIOD_VALUE_MAX 0x7FF
+uint16_t period_value = 1792;
 
 // -----------------------------------------------------------------------------
 // Inputs
@@ -116,7 +120,6 @@ void shiftwave(void) {
   _wave[0] |= lfsr_bit;
 }
 
-uint16_t period_value = 0x700;
 void play_isr(void) {
   if (play) {
     shiftwave();
@@ -155,12 +158,20 @@ void check_inputs(void) {
     }
   }
 
-  // TODO: period_value - more controls
-  if (key_pressed(J_UP)) {
-    period_value += 10;
-  }
-  if (key_pressed(J_DOWN)) {
-    period_value -= 10;
+  if (key_pressed(J_A)) {
+    if (key_pressed(J_UP))
+      if (period_value + 10 <= PERIOD_VALUE_MAX)
+        period_value += 10;
+    if (key_pressed(J_DOWN))
+      if (period_value >= PERIOD_VALUE_MIN + 10)
+        period_value -= 10;
+  } else {
+    if (key_pressed(J_UP))
+      if (period_value + 1 <= PERIOD_VALUE_MAX)
+        period_value++;
+    if (key_pressed(J_DOWN))
+      if (period_value >= PERIOD_VALUE_MIN + 1)
+        period_value--;
   }
 }
 
