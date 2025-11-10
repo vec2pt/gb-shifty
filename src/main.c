@@ -176,14 +176,9 @@ void check_inputs(void) {
 }
 
 void show_logo(void) {
-  gotoxy(7, 4);
-  printf("Shifty");
-
-  // Logo
-  set_bkg_tiles(5, 5, logo_WIDTH / 8, logo_HEIGHT / 8, logo_map);
-
-  gotoxy(5, 13);
-  printf("by  vec2pt");
+  cls();
+  set_bkg_data(0, logo_TILE_COUNT, logo_tiles);
+  set_bkg_tiles(0, 0, logo_WIDTH / 8, logo_HEIGHT / 8, logo_map);
 
   vsync();
   delay(2200);
@@ -191,6 +186,8 @@ void show_logo(void) {
 
 uint16_t seed;
 void setup(void) {
+  SHOW_BKG;
+
   // Random seed
   seed = DIV_REG;
   seed |= (uint16_t)DIV_REG << 8;
@@ -201,7 +198,6 @@ void setup(void) {
   NR51_REG = 0x44;
   NR50_REG = 0x77;
 
-  set_bkg_data(0x66, logo_TILE_COUNT, logo_tiles);
   show_logo();
 }
 
