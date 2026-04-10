@@ -1,5 +1,9 @@
 # Shifty (Game Boy ROM)
 
+<p align="center">
+<img src="doc/gb-shifty-00.png" alt="gb-shifty title image."/>
+</p>
+
 An experiment inspired by [Shitwave - A PRNG based drone generator for Gameboy](https://blog.gg8.se/wordpress/2009/03/23/shitwave-a-prng-based-drone-generator-for-gameboy/).
 
 ## Controls
