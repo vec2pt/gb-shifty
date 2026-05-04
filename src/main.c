@@ -12,7 +12,8 @@
 // Variables / Constants
 // -----------------------------------------------------------------------------
 
-#define VERSION "v0.9.0"
+#define VERSION "v0.9.1"
+#define DISPLAY_LOGO true
 
 #define AUD3WAVE_LEN 16
 #define SAMPLES 32
@@ -198,7 +199,9 @@ void setup(void) {
   NR51_REG = 0x44;
   NR50_REG = 0x77;
 
+#if DISPLAY_LOGO
   show_logo();
+#endif
 }
 
 void main(void) {
