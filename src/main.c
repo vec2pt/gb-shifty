@@ -12,7 +12,7 @@
 // Variables / Constants
 // -----------------------------------------------------------------------------
 
-#define VERSION "v0.9.1"
+#define VERSION "v0.9.2"
 #define DISPLAY_LOGO true
 
 #define AUD3WAVE_LEN 16
@@ -176,13 +176,19 @@ void check_inputs(void) {
   }
 }
 
-void show_logo(void) {
-  cls();
-  set_bkg_data(0, logo_TILE_COUNT, logo_tiles);
-  set_bkg_tiles(0, 0, logo_WIDTH / 8, logo_HEIGHT / 8, logo_map);
+void display_logo(void) {
+  gotoxy(6, 4);
+  printf("Shifty");
+
+  // Logo
+  set_bkg_tiles(5, 5, logo_WIDTH / 8, logo_HEIGHT / 8, logo_map);
+
+  gotoxy(5, 13);
+  printf("by  vec2pt");
 
   vsync();
   delay(2200);
+  cls();
 }
 
 uint16_t seed;
@@ -200,7 +206,8 @@ void setup(void) {
   NR50_REG = 0x77;
 
 #if DISPLAY_LOGO
-  show_logo();
+  set_bkg_data(0x78, logo_TILE_COUNT, logo_tiles);
+  display_logo();
 #endif
 }
 
