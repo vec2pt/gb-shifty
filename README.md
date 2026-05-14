@@ -25,7 +25,7 @@ An experiment inspired by [Shitwave - A PRNG based drone generator for Gameboy](
 ![gb-shifty-03.png](doc/gb-shifty-03.png)
 
 
-## Special Thanks
+## Acknowledgments
 
 - [GBDK-2020](https://github.com/gbdk-2020/gbdk-2020)
 - [Pan Docs](https://gbdev.io/pandocs/)
